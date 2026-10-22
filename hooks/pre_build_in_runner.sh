@@ -163,14 +163,6 @@ Signed-By: ${keyring_path}
 EOF2
 }
 
-if is_debian_like; then
-  apt_safe update -y
-  apt_safe install -y --no-install-recommends \
-    rpm \
-    createrepo-c \
-    ca-certificates
-fi
-
 chmod +x "$(dirname "${BASH_SOURCE[0]}")"/*.sh        2>/dev/null || true
 chmod +x "$(dirname "${BASH_SOURCE[0]}")/lib/"*.sh    2>/dev/null || true
 chmod +x .github/hooks/*.sh                           2>/dev/null || true
