@@ -163,7 +163,7 @@ EOF2
 
 # hier nur Dinge, die der Runner braucht (z.B. docker, jq etc.)
 # Beispiel:
-if is_debian_like; then
+if is_debian_like && ! command -v jq >/dev/null 2>&1; then
   apt_safe update -y
   apt_safe install -y --no-install-recommends jq
 fi
