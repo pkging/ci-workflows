@@ -124,6 +124,7 @@ jobs:
               "debian13": {"target_type": "apt", "target_family": "debian", "target_version": "trixie"},
               "ubuntu22": {"target_type": "apt", "target_family": "ubuntu", "target_version": "jammy"},
               "ubuntu24": {"target_type": "apt", "target_family": "ubuntu", "target_version": "noble"},
+              "ubuntu26": {"target_type": "apt", "target_family": "ubuntu", "target_version": "resolute"},
           }
 
           def parse_scalar(value: str) -> str:

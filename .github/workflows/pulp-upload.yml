@@ -90,7 +90,7 @@ jobs:
                   ;;
                 ubuntu)
                   case "${TARGET_VERSION}" in
-                    jammy|noble) ;;
+                    jammy|noble|resolute) ;;
                     *) echo "Unsupported TARGET_VERSION for apt/ubuntu: ${TARGET_VERSION}" >&2; exit 1 ;;
                   esac
                   REPOSITORY_NAME="ubuntu-apt"

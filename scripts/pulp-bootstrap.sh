@@ -76,7 +76,7 @@ resolve_target() {
           ;;
         ubuntu)
           case "${TARGET_VERSION}" in
-            jammy|noble) ;;
+            jammy|noble|resolute) ;;
             *)
               log "Unsupported TARGET_VERSION for apt/ubuntu: ${TARGET_VERSION}"
               exit 1
