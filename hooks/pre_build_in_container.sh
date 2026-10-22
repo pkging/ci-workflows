@@ -11,38 +11,46 @@ log "Running global pre-build container setup for distro: $ID ($ID_LIKE)"
 # ---------------------------------------------------------------------------
 if is_el || is_fedora; then
   log "Preparing rpmbuild environment..."
-  dnf install -y --allowerasing \
-    rpm-build \
-    rpmdevtools \
-    redhat-rpm-config \
-    make \
-    gcc \
-    gcc-c++ \
-    tar \
-    gzip \
-    bzip2 \
-    patch \
-    which \
-    git \
-    wget \
-    dnf-plugins-core
-  dnf clean all
+  if [[ -f /etc/pkging-ci-image ]]; then
+    log "Preloaded CI image detected; skipping common build-tool installation."
+  else
+    dnf install -y --allowerasing \
+      rpm-build \
+      rpmdevtools \
+      redhat-rpm-config \
+      make \
+      gcc \
+      gcc-c++ \
+      tar \
+      gzip \
+      bzip2 \
+      patch \
+      which \
+      git \
+      wget \
+      dnf-plugins-core
+    dnf clean all
+  fi
 
   mkdir -p /workspace/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 elif is_debian_like; then
   log "Preparing debian build environment..."
-  apt-get update -y
-  apt-get install -y \
-    build-essential \
-    git \
-    tar \
-    gzip \
-    devscripts \
-    debhelper \
-    fakeroot \
-    curl \
-    rsync \
-    ca-certificates
+  if [[ -f /etc/pkging-ci-image ]]; then
+    log "Preloaded CI image detected; skipping common build-tool installation."
+  else
+    apt-get update -y
+    apt-get install -y \
+      build-essential \
+      git \
+      tar \
+      gzip \
+      devscripts \
+      debhelper \
+      fakeroot \
+      curl \
+      rsync \
+      ca-certificates
+  fi
 
   log "DEBUG: Searching for packaging debian directory..."
   find / -maxdepth 5 -type d -name debian 2>/dev/null | grep -v build-src

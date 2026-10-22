@@ -9,6 +9,11 @@ log "Running global pre-test container setup for distro: $ID ($ID_LIKE)"
 # ---------------------------------------------------------------------------
 # RPM-BASED DISTROS
 # ---------------------------------------------------------------------------
+if [[ -f /etc/pkging-ci-image ]]; then
+  log "Preloaded CI image detected; skipping common test-tool installation."
+  exit 0
+fi
+
 if is_el || is_fedora; then
   dnf install -y \
     python3 \

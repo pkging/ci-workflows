@@ -110,6 +110,25 @@ Konsumenten (Build/Test):
 - [ci-workflows/.github/workflows/build.yml](.github/workflows/build.yml) nutzt GHCR-Login mit `GITHUB_TOKEN` und `permissions: packages: read`.
 - Die Image-Aufloesung erfolgt ueber [ci-workflows/hooks/lib/container_images.sh](hooks/lib/container_images.sh).
 
+### Vorgefertigte CI-Images
+
+Fuer alle Matrixziele werden CI-Images mit gemeinsamen Build- und
+Testwerkzeugen gebaut. Die Dockerfiles liegen unter `images/<familie>/<version>/`;
+`.github/workflows/build-ci-images.yml` baut sie fuer `linux/amd64` und
+`linux/arm64` und publiziert versionierte Tags wie
+`ghcr.io/pkging/build-images/ubuntu:26.04-ci-v1`.
+`container_images.sh` verwendet diese Tags fuer die jeweiligen Distro-Keys.
+Die globalen Build-/Test-Hooks erkennen das im Dockerfile gesetzte
+`/etc/pkging-ci-image`-Merkmal und installieren die dort bereits enthaltenen
+Werkzeuge nicht erneut. Paketbezogene Hooks und deren Abhaengigkeiten laufen
+weiter wie bisher.
+
+Bei Aenderungen unter `images/` wird das betroffene Image bei Push nach `main`
+automatisch neu gebaut. Fuer eine kontrollierte Werkzeugaktualisierung einen
+neuen Tag (zum Beispiel `26.04-ci-v2`) veroeffentlichen und erst danach das
+Mapping in `container_images.sh` umstellen. Die unveraenderten Basisimages
+werden weiterhin separat vom Mirror-Workflow gespiegelt.
+
 ### GitHub Klickreihenfolge: Package auf Public stellen
 
 Falls bei einem Package steht "Setting is disabled by organization administrators", ist die Public-Visibility auf Org- oder Enterprise-Ebene gesperrt.
@@ -242,10 +261,12 @@ muessen in `pkging/ci-workflows` und, falls dort versionsspezifische Hooks liege
 auch im jeweiligen Paket-Repository erfolgen.
 
 1. **Build-Image spiegeln:** `.github/workflows/mirror-build-images.yml` enthaelt
-  eine eigene Liste der Quell-Images. Ergaenze dort den Upstream-Tag, starte den
-  Mirror-Workflow und pruefe, dass das Image unter
-  `ghcr.io/pkging/build-images/<name>:<tag>` erreichbar ist. Die Liste wird
-  nicht automatisch aus dem Image-Mapping erzeugt.
+  eine eigene Liste der Quell-Images. Ergaenze dort den Upstream-Tag und starte
+  den Mirror-Workflow. Falls GitHub meldet, dass `workflow_dispatch` fuer einen
+  deaktivierten Workflow nicht moeglich ist, aktiviere den Workflow in GitHub
+  Actions und starte ihn erneut. Pruefe nach erfolgreichem Lauf, dass das Image
+  unter `ghcr.io/pkging/build-images/<name>:<tag>` erreichbar ist. Die Liste
+  wird nicht automatisch aus dem Image-Mapping erzeugt.
 2. **Distro-Key auf Image abbilden:** Ergaenze denselben Matrix-Key in
   [container_images.sh](hooks/lib/container_images.sh) mit dem exakten GHCR-Image.
   Der Key muss mit dem im aufrufenden Paket-Workflow verwendeten Matrix-Key

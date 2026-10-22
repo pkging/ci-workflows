@@ -1,0 +1,78 @@
+name: Build CI Images
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "images/**"
+      - ".github/workflows/build-ci-images.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build-ci-images
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_CONFIG: ${{ github.workspace }}/.docker-config
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - context: images/almalinux/8
+            image: almalinux:8-ci-v1
+          - context: images/almalinux/9
+            image: almalinux:9-ci-v1
+          - context: images/almalinux/10
+            image: almalinux:10-ci-v1
+          - context: images/fedora/43
+            image: fedora:43-ci-v1
+          - context: images/fedora/44
+            image: fedora:44-ci-v1
+          - context: images/debian/12
+            image: debian:12-ci-v1
+          - context: images/debian/13
+            image: debian:13-ci-v1
+          - context: images/ubuntu/22.04
+            image: ubuntu:22.04-ci-v1
+          - context: images/ubuntu/24.04
+            image: ubuntu:24.04-ci-v1
+          - context: images/ubuntu/26.04
+            image: ubuntu:26.04-ci-v1
+
+    steps:
+      - name: Checkout ci-workflows
+        uses: actions/checkout@v4
+
+      - name: Prepare Docker config directory
+        run: |
+          set -euo pipefail
+          mkdir -p "$DOCKER_CONFIG"
+          chmod 700 "$DOCKER_CONFIG"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        env:
+          DOCKER_CONFIG: ${{ github.workspace }}/.docker-config
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push CI image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ghcr.io/pkging/build-images/${{ matrix.image }}
