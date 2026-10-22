@@ -65,7 +65,7 @@ resolve_target() {
       case "${TARGET_FAMILY}" in
         debian)
           case "${TARGET_VERSION}" in
-            bullseye|bookworm|trixie) ;;
+            bookworm|trixie) ;;
             *)
               log "Unsupported TARGET_VERSION for apt/debian: ${TARGET_VERSION}"
               exit 1

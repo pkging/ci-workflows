@@ -119,7 +119,6 @@ jobs:
               "el10": {"target_type": "rpm", "target_family": "epel", "target_version": "10"},
               "fedora43": {"target_type": "rpm", "target_family": "fedora", "target_version": "43"},
               "fedora44": {"target_type": "rpm", "target_family": "fedora", "target_version": "44"},
-              "debian11": {"target_type": "apt", "target_family": "debian", "target_version": "bullseye"},
               "debian12": {"target_type": "apt", "target_family": "debian", "target_version": "bookworm"},
               "debian13": {"target_type": "apt", "target_family": "debian", "target_version": "trixie"},
               "ubuntu22": {"target_type": "apt", "target_family": "ubuntu", "target_version": "jammy"},

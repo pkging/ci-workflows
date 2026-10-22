@@ -82,7 +82,7 @@ jobs:
               case "${TARGET_FAMILY}" in
                 debian)
                   case "${TARGET_VERSION}" in
-                    bullseye|bookworm|trixie) ;;
+                    bookworm|trixie) ;;
                     *) echo "Unsupported TARGET_VERSION for apt/debian: ${TARGET_VERSION}" >&2; exit 1 ;;
                   esac
                   REPOSITORY_NAME="debian-apt"
