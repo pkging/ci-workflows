@@ -234,6 +234,46 @@ Aufloesung im Upload:
 - APT Debian: Repository `debian-apt`, Base-Path `debian`, Suite ueber `TARGET_VERSION`
 - APT Ubuntu: Repository `ubuntu-apt`, Base-Path `ubuntu`, Suite ueber `TARGET_VERSION`
 
+### Neue Distversion hinzufuegen
+
+Eine neue Distversion muss an mehreren Stellen freigeschaltet werden. Ein Eintrag
+in der Matrix eines Paket-Repositories allein reicht nicht aus. Die Aenderungen
+muessen in `pkging/ci-workflows` und, falls dort versionsspezifische Hooks liegen,
+auch im jeweiligen Paket-Repository erfolgen.
+
+1. **Build-Image spiegeln:** `.github/workflows/mirror-build-images.yml` enthaelt
+  eine eigene Liste der Quell-Images. Ergaenze dort den Upstream-Tag, starte den
+  Mirror-Workflow und pruefe, dass das Image unter
+  `ghcr.io/pkging/build-images/<name>:<tag>` erreichbar ist. Die Liste wird
+  nicht automatisch aus dem Image-Mapping erzeugt.
+2. **Distro-Key auf Image abbilden:** Ergaenze denselben Matrix-Key in
+  [container_images.sh](hooks/lib/container_images.sh) mit dem exakten GHCR-Image.
+  Der Key muss mit dem im aufrufenden Paket-Workflow verwendeten Matrix-Key
+  uebereinstimmen.
+3. **Zielmapping ergaenzen:** Fuege den Key in `TARGET_MAP` in
+  `.github/workflows/package.yml` ein. Setze `target_type`, `target_family` und
+  `target_version` passend zum Paketformat und zum Repository-Ziel. Bei APT ist
+  `target_version` der Suite-Name (zum Beispiel `noble`), nicht die numerische
+  Ubuntu-Version. Aktualisiere auch die Mapping-Tabelle direkt oberhalb dieser
+  Checkliste.
+4. **Upload-Validierung ergaenzen:** Wenn die neue Familie oder Suite noch nicht
+  erlaubt ist, aktualisiere die passenden Allowlisten in
+  `.github/workflows/pulp-upload.yml` und `scripts/pulp-bootstrap.sh`. Pruefe,
+  dass Repository-Name, Suite und Pulp-Basispfad fuer das Ziel tatsaechlich
+  eingerichtet sind.
+5. **Paket-Hooks und Release-Paket pruefen:** Im Paket-Repository die Hooks unter
+  `.github/hooks/` auf versionsspezifische Allowlisten und Installations-URLs
+  pruefen, insbesondere `pre_build.sh`, `pre_test.sh` und `smoke.sh`, sofern
+  vorhanden. Das passende OpenVox-Release-Paket muss fuer die Distribution
+  verfuegbar sein; ein Eintrag in einer lokalen Allowlist erzeugt es nicht.
+6. **Aufrufende Paket-Matrix erweitern:** Erst wenn Image, Build/Test und
+  gegebenenfalls Upload vorbereitet sind, den Distro-Key samt Architektur in
+  `.github/workflows/package.yml` des Paket-Repositories aufnehmen.
+7. **Validieren:** Einen Build und Paket-Test fuer die neue Matrix-Kombination
+  ausfuehren. Bei aktiviertem Upload zusaetzlich Upload/Bootstrap pruefen. Bei
+  Fehlern die erste fehlgeschlagene Stufe auswerten: Matrix-Aufloesung,
+  Image-Pull, Release-Paket-Installation, Paketinstallation oder Pulp-Upload.
+
 ### Self-Hosted Runner Voraussetzungen
 
 Auf einem Self-Hosted Runner werden mehrere Tools und Rechte vorausgesetzt, die auf `ubuntu-latest` bereits vorhanden sind, im pkging aber haeufig fehlen:
