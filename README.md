@@ -222,11 +222,11 @@ Aktuelles zentrales Mapping:
 | `el10` | `rpm` | `epel` | `10` |
 | `fedora43` | `rpm` | `fedora` | `43` |
 | `fedora44` | `rpm` | `fedora` | `44` |
-| `debian11` | `apt` | `debian` | `bullseye` |
 | `debian12` | `apt` | `debian` | `bookworm` |
 | `debian13` | `apt` | `debian` | `trixie` |
 | `ubuntu22` | `apt` | `ubuntu` | `jammy` |
 | `ubuntu24` | `apt` | `ubuntu` | `noble` |
+| `ubuntu26` | `apt` | `ubuntu` | `resolute` |
 
 Aufloesung im Upload:
 
