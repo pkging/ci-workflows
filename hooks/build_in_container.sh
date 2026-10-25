@@ -96,8 +96,13 @@ else
     exit 1
   fi
 
-  log "Running dpkg-buildpackage..."
   cd /workspace/upstream
+  log "Installing DEB build dependencies from debian/control..."
+  apt-get update -y
+  apt-get install -y --no-install-recommends equivs
+  mk-build-deps --install --remove --tool 'apt-get -y --no-install-recommends' debian/control
+
+  log "Running dpkg-buildpackage..."
   dpkg-buildpackage -us -uc
 
   log "dpkg-buildpackage completed successfully."
