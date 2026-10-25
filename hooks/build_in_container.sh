@@ -61,6 +61,16 @@ if [[ "$PACKAGE_FORMAT" == "rpm" ]]; then
   log "Using SPEC file: $SPECFILE"
 
   cp -v "$SPECFILE" "$TOPDIR/SPECS/"
+  BUILD_SPEC="$TOPDIR/SPECS/$(basename "$SPECFILE")"
+
+  log "Installing RPM build dependencies from spec..."
+  if command -v dnf5 >/dev/null 2>&1; then
+    dnf5 install -y dnf5-plugins
+    dnf5 builddep --spec "$BUILD_SPEC"
+  else
+    dnf install -y dnf-plugins-core
+    dnf builddep "$BUILD_SPEC"
+  fi
 
   # ---------------------------------------------------------------------------
   # DOWNLOAD SOURCES VIA SPECTOOL
@@ -70,7 +80,7 @@ if [[ "$PACKAGE_FORMAT" == "rpm" ]]; then
   spectool -g -R \
     --define "_topdir $TOPDIR" \
     --define "_sourcedir $TOPDIR/SOURCES" \
-    "$TOPDIR/SPECS/$(basename "$SPECFILE")"
+    "$BUILD_SPEC"
 
   log "Downloaded sources:"
   ls -l "$TOPDIR/SOURCES"
@@ -82,7 +92,7 @@ if [[ "$PACKAGE_FORMAT" == "rpm" ]]; then
 
   rpmbuild \
     --define "_topdir $TOPDIR" \
-    -ba "$TOPDIR/SPECS/$(basename "$SPECFILE")"
+    -ba "$BUILD_SPEC"
 
   log "rpmbuild completed successfully."
 else
