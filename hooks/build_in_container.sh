@@ -66,10 +66,10 @@ if [[ "$PACKAGE_FORMAT" == "rpm" ]]; then
   log "Installing RPM build dependencies from spec..."
   if command -v dnf5 >/dev/null 2>&1; then
     dnf5 install -y dnf5-plugins
-    dnf5 builddep --spec "$BUILD_SPEC"
+    dnf5 builddep -y --spec "$BUILD_SPEC"
   else
     dnf install -y dnf-plugins-core
-    dnf builddep "$BUILD_SPEC"
+    dnf builddep -y "$BUILD_SPEC"
   fi
 
   # ---------------------------------------------------------------------------
