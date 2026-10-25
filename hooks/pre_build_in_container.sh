@@ -93,12 +93,18 @@ elif is_debian_like; then
     VER=${VER_FULL%-*}
 
     ORIG="../${PKG}_${VER}.orig.tar.xz"
+    for archive in ../"${PKG}_${VER}".orig.tar.*; do
+      if [[ -f "$archive" ]]; then
+        ORIG="$archive"
+        break
+      fi
+    done
 
     if [[ -f "$ORIG" ]]; then
       log "Extracting upstream source..."
       rm -rf ../build-src
       mkdir ../build-src
-      tar --extract --xz --file "$ORIG" --directory ../build-src
+      tar --extract --file "$ORIG" --directory ../build-src
 
       log "Copying orig tarball into /workspace..."
       cp "$ORIG" /workspace/
