@@ -110,7 +110,10 @@ else
   log "Installing DEB build dependencies from debian/control..."
   apt-get update -y
   apt-get install -y --no-install-recommends equivs
-  mk-build-deps --install --remove --tool 'apt-get -y --no-install-recommends' debian/control
+  (
+    cd /workspace
+    mk-build-deps --install --remove --tool 'apt-get -y --no-install-recommends' /workspace/upstream/debian/control
+  )
 
   log "Running dpkg-buildpackage..."
   dpkg-buildpackage -us -uc
