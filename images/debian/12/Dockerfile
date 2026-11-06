@@ -13,11 +13,14 @@ RUN apt-get update \
         fakeroot \
         git \
         gzip \
+        locales \
         python3 \
         python3-pip \
         rsync \
         systemd \
         tar \
+    && sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
+    && locale-gen \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && touch /etc/pkging-ci-image

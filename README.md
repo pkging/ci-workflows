@@ -123,6 +123,9 @@ Die globalen Build-/Test-Hooks erkennen das im Dockerfile gesetzte
 Werkzeuge nicht erneut. Paketbezogene Hooks und deren Abhaengigkeiten laufen
 weiter wie bisher.
 
+Die Debian-/Ubuntu-CI-Images enthalten `locales` und generieren `en_US.UTF-8`,
+damit Pakete diese Locale beim Build ohne Warnungen verwenden koennen.
+
 Bei Aenderungen unter `images/` wird das betroffene Image bei Push nach `main`
 automatisch neu gebaut. Fuer eine kontrollierte Werkzeugaktualisierung einen
 neuen Tag (zum Beispiel `26.04-ci-v2`) veroeffentlichen und erst danach das
