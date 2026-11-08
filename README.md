@@ -337,6 +337,37 @@ Diese beiden Schlüsselpaare sind nicht identisch. Sie sind getrennte Exporte, d
 
 Für ein neues Setup empfiehlt sich daher: genau einen Signing-Key pro Zweck wählen, diesen privaten Schlüssel und die zugehörige Key-ID als GitHub-Secrets speichern und dabei sicherstellen, dass der Secret-Wert und die Key-ID zueinander passen.
 
+### Fehlerbehandlung beim Debian-Quellcode-Download
+
+Der globale [Pre-Build-Hook](hooks/pre_build_in_container.sh) bricht bei einem
+fehlgeschlagenen `uscan`-Download oder fehlenden, leeren bzw. ungueltigen Quellen
+nach drei Versuchen insgesamt mit einer Fehlermeldung ab. Zwischen den
+Versuchen liegen zehn Sekunden Pause. Ungueltige oder teilweise geladene
+Archive werden verworfen; jeder Versuch laedt neu herunter und prueft das
+entpackte Archiv erneut. Es wird kein Ersatzarchiv aus dem
+Packaging-Workspace erzeugt. Das entpackte Archiv muss genau ein
+Top-Level-Quellverzeichnis mit Dateien ausserhalb von `debian/` enthalten;
+ein leerer Pfad wird niemals an `rsync` uebergeben.
+
+Rubygems-API-Watch-Dateien verwenden weiterhin den direkten Download der
+paketierten Gem-Version. Der Gem-Name muss aus der Watch-Datei ermittelbar sein;
+Downloadfehler und leere Downloads werden ebenfalls bis zu drei Mal insgesamt
+versucht, mit zehn Sekunden Pause und anschliessendem Abbruch ohne Fallback.
+Es gibt keine zusaetzlichen internen curl-Retries. Jeder Download hat ein
+Verbindungslimit von 30 Sekunden und ein Transferlimit von 300 Sekunden.
+
+Native Debian-Pakete (`3.0 (native)`) und nicht-native Pakete ohne `debian/watch`
+verwenden weiterhin die Workspace-Quellen.
+Ein vorhandenes ungueltiges Archiv ohne Watch-Datei fuehrt zum Abbruch;
+ohne Downloadquelle ist keine Wiederholung moeglich.
+
+Die lokalen Regressionstests pruefen Downloadfehler, ungueltige Archive und
+die weiterhin unterstuetzten Quellcode-Pfade:
+
+```bash
+bash tests/pre_build_in_container_test.sh
+```
+
 ### 🪝 Projekt-Hooks
 
 ```

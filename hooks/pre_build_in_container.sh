@@ -72,45 +72,117 @@ elif is_debian_like; then
       --exclude 'rpmbuild/' \
       /workspace/ /workspace/upstream/
   else
-    log "Running uscan..."
-    if grep -q 'rubygems\.org/api/v1/versions' /workspace/debian/watch 2>/dev/null; then
-      # For Rubygems API watch files we only query version metadata here and keep CI logs concise.
-      uscan_log="$(mktemp)"
-      if ! uscan --report >"$uscan_log" 2>&1; then
-        log "uscan report returned non-zero for Rubygems watch (continuing with fallback)."
+    HAS_WATCH=false
+    IS_RUBYGEMS=false
+    if [[ -f /workspace/debian/watch ]]; then
+      HAS_WATCH=true
+      if grep -q 'rubygems\.org/api/v1/versions' /workspace/debian/watch; then
+        IS_RUBYGEMS=true
+        log "Rubygems API watch detected; downloading the packaged gem version directly."
       fi
-
-      if grep -Eiq 'uscan (warn|error):|Newest version' "$uscan_log"; then
-        grep -Ei 'uscan (warn|error):|Newest version' "$uscan_log" || true
-      fi
-      rm -f "$uscan_log"
-    elif ! uscan --download-current-version --force-download; then
-      log "uscan did not download an upstream archive; trying fallback handling."
     fi
 
     PKG=$(dpkg-parsechangelog -S Source)
     VER_FULL=$(dpkg-parsechangelog -S Version)
     VER=${VER_FULL%-*}
 
-    ORIG="../${PKG}_${VER}.orig.tar.xz"
-    for archive in ../"${PKG}_${VER}".orig.tar.*; do
-      if [[ -f "$archive" ]]; then
-        ORIG="$archive"
-        break
+    validate_upstream_archive() {
+      if [[ ! -s "$ORIG" ]]; then
+        echo "[ERROR] Upstream source archive is empty: $ORIG" >&2
+        return 1
       fi
-    done
 
-    if [[ -f "$ORIG" ]]; then
       log "Extracting upstream source..."
-      rm -rf ../build-src
-      mkdir ../build-src
-      tar --extract --file "$ORIG" --directory ../build-src
-
-      log "Copying orig tarball into /workspace..."
-      cp "$ORIG" /workspace/
+      if ! tar --extract --file "$ORIG" --directory ../build-src; then
+        echo "[ERROR] Cannot extract upstream source archive: $ORIG" >&2
+        return 1
+      fi
 
       log "Detecting upstream directory..."
-      UPSTREAM_DIR=$(find ../build-src -mindepth 1 -maxdepth 1 -type d | head -n1)
+      UPSTREAM_DIRS=()
+      if ! find ../build-src -mindepth 1 -maxdepth 1 -type d -print0 > ../build-src/.ci-directories; then
+        echo "[ERROR] Cannot inspect extracted upstream directories: $ORIG" >&2
+        return 1
+      fi
+      while IFS= read -r -d '' directory; do
+        UPSTREAM_DIRS+=("$directory")
+      done < ../build-src/.ci-directories
+      rm -f ../build-src/.ci-directories
+      if (( ${#UPSTREAM_DIRS[@]} != 1 )); then
+        echo "[ERROR] Upstream archive must contain exactly one top-level source directory; found ${#UPSTREAM_DIRS[@]}: $ORIG" >&2
+        return 1
+      fi
+      UPSTREAM_DIR="${UPSTREAM_DIRS[0]}"
+      if ! SOURCE_FILE=$(find "$UPSTREAM_DIR" -type f ! -path "$UPSTREAM_DIR/debian/*" -print -quit); then
+        echo "[ERROR] Cannot inspect upstream source files: $UPSTREAM_DIR" >&2
+        return 1
+      fi
+      if [[ -z "$SOURCE_FILE" ]]; then
+        echo "[ERROR] Upstream source directory contains no source files: $UPSTREAM_DIR" >&2
+        return 1
+      fi
+    }
+
+    SOURCE_VALID=false
+    MAX_ATTEMPTS=1
+    if [[ "$HAS_WATCH" == "true" && "$IS_RUBYGEMS" == "false" ]]; then
+      MAX_ATTEMPTS=3
+    fi
+    for (( attempt=1; attempt<=MAX_ATTEMPTS; attempt++ )); do
+      DOWNLOAD_OK=true
+      if (( MAX_ATTEMPTS > 1 )); then
+        log "Upstream source download attempt ${attempt}/${MAX_ATTEMPTS}"
+        # Do not let a stale or partial archive satisfy a fresh download.
+        for archive in ../"${PKG}_${VER}".orig.tar.*; do
+          [[ ! -e "$archive" && ! -L "$archive" ]] || rm -f -- "$archive"
+        done
+        if ! uscan --download-current-version --force-download; then
+          echo "[ERROR] Upstream source download via uscan failed." >&2
+          DOWNLOAD_OK=false
+        fi
+      fi
+
+      ORIG="../${PKG}_${VER}.orig.tar.xz"
+      for archive in ../"${PKG}_${VER}".orig.tar.*; do
+        if [[ -f "$archive" ]]; then
+          ORIG="$archive"
+          break
+        fi
+      done
+
+      rm -rf ../build-src
+      mkdir ../build-src
+      if [[ "$DOWNLOAD_OK" == "true" ]]; then
+        if [[ -f "$ORIG" ]]; then
+          if validate_upstream_archive; then
+            SOURCE_VALID=true
+            break
+          fi
+        elif (( MAX_ATTEMPTS > 1 )); then
+          echo "[ERROR] uscan produced no upstream archive for ${PKG} ${VER}." >&2
+        else
+          break
+        fi
+      fi
+
+      for archive in ../"${PKG}_${VER}".orig.tar.*; do
+        [[ ! -e "$archive" && ! -L "$archive" ]] || rm -f -- "$archive"
+      done
+      if [[ "$IS_RUBYGEMS" == "true" ]]; then
+        log "Discarding invalid cached upstream archive; downloading Rubygems source anew."
+        break
+      fi
+      if (( attempt == MAX_ATTEMPTS )); then
+        echo "[ERROR] Upstream sources unavailable or invalid after ${attempt} attempt(s); refusing fallback sources." >&2
+        exit 1
+      fi
+      log "Retrying upstream source download in 10 seconds..."
+      sleep 10
+    done
+
+    if [[ "$SOURCE_VALID" == "true" ]]; then
+      log "Copying orig tarball into /workspace..."
+      cp "$ORIG" /workspace/
       log "Upstream directory is: $UPSTREAM_DIR"
 
       log "Removing upstream debian/ directory..."
@@ -123,16 +195,36 @@ elif is_debian_like; then
       log "Copying packaging debian/ into upstream/"
       cp -a /workspace/debian /workspace/upstream/
     else
-      if grep -q 'rubygems\.org' /workspace/debian/watch 2>/dev/null; then
+      if [[ "$IS_RUBYGEMS" == "true" ]]; then
         GEM_NAME="$(sed -n 's#.*/versions/\([^/]*\)/latest\.json.*#\1#p' /workspace/debian/watch | head -n1)"
-        GEM_NAME="${GEM_NAME:-ansi}"
+        if [[ -z "$GEM_NAME" ]]; then
+          echo "[ERROR] Cannot determine gem name from debian/watch; refusing a fallback gem name." >&2
+          exit 1
+        fi
         GEM_FILE="${GEM_NAME}-${VER}.gem"
         GEM_URL="https://rubygems.org/downloads/${GEM_FILE}"
         ORIG_TOPDIR="${PKG}-${VER}"
         ORIG_STAGE="../build-src/${ORIG_TOPDIR}"
 
-        log "No orig.tar produced; using Rubygems fallback for ${GEM_FILE}"
-        curl -fL --retry 3 -o "/workspace/${GEM_FILE}" "${GEM_URL}"
+        for (( attempt=1; attempt<=3; attempt++ )); do
+          log "Downloading Rubygems source: ${GEM_FILE} (attempt ${attempt}/3)"
+          rm -f -- "/workspace/${GEM_FILE}"
+          if ! curl -fL --connect-timeout 30 --max-time 300 \
+            -o "/workspace/${GEM_FILE}" "${GEM_URL}"; then
+            echo "[ERROR] Rubygems source download failed: ${GEM_FILE}" >&2
+          elif [[ ! -s "/workspace/${GEM_FILE}" ]]; then
+            echo "[ERROR] Downloaded Rubygems source is empty: ${GEM_FILE}" >&2
+          else
+            break
+          fi
+          rm -f -- "/workspace/${GEM_FILE}"
+          if (( attempt == 3 )); then
+            echo "[ERROR] Rubygems sources unavailable after 3 attempts; refusing fallback sources." >&2
+            exit 1
+          fi
+          log "Retrying Rubygems source download in 10 seconds..."
+          sleep 10
+        done
 
         mkdir -p /workspace/upstream
         rsync -a \
@@ -151,6 +243,10 @@ elif is_debian_like; then
         tar --create --xz --file "$ORIG" --directory ../build-src "$ORIG_TOPDIR"
         cp "$ORIG" /workspace/
       else
+        if [[ "$HAS_WATCH" == "true" ]]; then
+          echo "[ERROR] uscan produced no upstream archive for ${PKG} ${VER}; refusing to build from fallback sources." >&2
+          exit 1
+        fi
         ORIG_TOPDIR="${PKG}-${VER}"
         ORIG_STAGE="../build-src/${ORIG_TOPDIR}"
 
